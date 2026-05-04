@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'megaoutlet-secret-key-change-in-production';
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Protect admin routes (except login)
@@ -16,7 +16,7 @@ export function middleware(req: NextRequest) {
     }
 
     try {
-      jwt.verify(token, JWT_SECRET);
+      await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
     } catch {
       return NextResponse.redirect(new URL('/admin/login', req.url));
     }

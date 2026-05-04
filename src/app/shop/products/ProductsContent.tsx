@@ -49,9 +49,13 @@ export default function ProductsContent() {
   const limit = 24;
 
   const { data, isLoading } = useSWR<ProductsResponse>(
-    `/api/products?q=${search}&category=${selectedCategory}&origin=${selectedOrigin}&sort=${sort}&page=${page}&limit=${limit}`,
+    `/products?q=${search}&category=${selectedCategory}&origin=${selectedOrigin}&sort=${sort}&page=${page}&limit=${limit}`,
     fetcher
   );
+
+  useEffect(() => {
+    setLoading(isLoading);
+  }, [isLoading]);
 
   useEffect(() => {
     if (data) {
@@ -59,7 +63,6 @@ export default function ProductsContent() {
       setTotal(data.total || 0);
       setCategories(data.categories || []);
       setOrigins(data.origins || []);
-      setLoading(false);
     }
   }, [data]);
 

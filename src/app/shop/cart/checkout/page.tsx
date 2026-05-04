@@ -101,7 +101,7 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/cart" className="text-gray-400 hover:text-gray-600">
+        <Link href="/shop/cart" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold text-dark">結帳</h1>

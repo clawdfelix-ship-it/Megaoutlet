@@ -56,7 +56,7 @@ export function Header() {
 
             {/* Cart */}
             <Link
-              href="/cart"
+              href="/shop/cart"
               className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition-colors"
             >
               <ShoppingCart size={20} />

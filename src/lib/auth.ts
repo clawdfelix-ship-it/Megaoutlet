@@ -4,11 +4,11 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'megaoutlet-secret-key-change-in-production';
 
 export function verifyAdmin(req: NextRequest) {
-  const auth = req.headers.get('authorization');
-  if (!auth?.startsWith('Bearer ')) return null;
-
   try {
-    const token = auth.slice(7);
+    const auth = req.headers.get('authorization');
+    const token =
+      auth?.startsWith('Bearer ') ? auth.slice(7) : req.cookies.get('admin_token')?.value;
+    if (!token) return null;
     return jwt.verify(token, JWT_SECRET) as { id: number; email: string; name: string };
   } catch {
     return null;

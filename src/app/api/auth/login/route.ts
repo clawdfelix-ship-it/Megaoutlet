@@ -24,10 +24,23 @@ export async function POST(req: NextRequest) {
         await prisma.admin.create({
           data: { email: 'admin@megaoutlet.com', password: hashed, name: '管理員' },
         });
-        return NextResponse.json({
-          token: jwt.sign({ id: 1, email: 'admin@megaoutlet.com', name: '管理員' }, JWT_SECRET, { expiresIn: '7d' }),
+        const token = jwt.sign(
+          { id: 1, email: 'admin@megaoutlet.com', name: '管理員' },
+          JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        const res = NextResponse.json({
+          token,
           admin: { id: 1, email: 'admin@megaoutlet.com', name: '管理員' },
         });
+        res.cookies.set('admin_token', token, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        });
+        return res;
       }
       return NextResponse.json({ error: '電郵或密碼錯誤' }, { status: 401 });
     }
@@ -43,10 +56,18 @@ export async function POST(req: NextRequest) {
       { expiresIn: '7d' }
     );
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       token,
       admin: { id: admin.id, email: admin.email, name: admin.name },
     });
+    res.cookies.set('admin_token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return res;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 });
