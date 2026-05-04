@@ -8,27 +8,36 @@ import { formatPrice } from '@/lib/utils';
 import { TrendingUp, Shield, Truck, Star } from 'lucide-react';
 
 async function getFeaturedProducts() {
-  return prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { soldCount: 'desc' },
-    take: 8,
-  });
+  const { prisma } = await import('@/lib/prisma');
+  try {
+    return await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { soldCount: 'desc' },
+      take: 8,
+    });
+  } catch { return []; }
 }
 
 async function getNewArrivals() {
-  return prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: 'desc' },
-    take: 8,
-  });
+  const { prisma } = await import('@/lib/prisma');
+  try {
+    return await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+    });
+  } catch { return []; }
 }
 
 async function getStats() {
-  const [totalProducts, totalOrders] = await Promise.all([
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.order.count(),
-  ]);
-  return { totalProducts, totalOrders };
+  const { prisma } = await import('@/lib/prisma');
+  try {
+    const [totalProducts, totalOrders] = await Promise.all([
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.order.count(),
+    ]);
+    return { totalProducts, totalOrders };
+  } catch { return { totalProducts: 0, totalOrders: 0 }; }
 }
 
 export default async function HomePage() {

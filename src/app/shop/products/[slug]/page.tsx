@@ -1,30 +1,32 @@
 import { notFound } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
 import { formatPrice } from '@/lib/utils';
 import { Truck, Shield, RefreshCw, ChevronRight, Clock, Package } from 'lucide-react';
 import { ProductDetailClient } from './ProductDetailClient';
 
 async function getProduct(slug: string) {
-  return prisma.product.findUnique({
-    where: { slug, isActive: true },
-  });
+  const { prisma } = await import('@/lib/prisma');
+  try {
+    return await prisma.product.findUnique({ where: { slug, isActive: true } });
+  } catch { return null; }
 }
 
 async function getRelatedProducts(categoryId: number | null, excludeId: number) {
-  if (!categoryId) {
+  const { prisma } = await import('@/lib/prisma');
+  try {
+    if (!categoryId) {
+      return prisma.product.findMany({
+        where: { isActive: true, id: { not: excludeId } },
+        orderBy: { soldCount: 'desc' }, take: 4,
+      });
+    }
     return prisma.product.findMany({
-      where: { isActive: true, id: { not: excludeId } },
-      orderBy: { soldCount: 'desc' },
-      take: 4,
+      where: { isActive: true, categoryId, id: { not: excludeId } },
+      orderBy: { soldCount: 'desc' }, take: 4,
     });
-  }
-  return prisma.product.findMany({
-    where: { isActive: true, categoryId, id: { not: excludeId } },
-    orderBy: { soldCount: 'desc' },
-    take: 4,
-  });
+  } catch { return []; }
 }
 
 export default async function ProductDetailPage({

@@ -1,54 +1,63 @@
 export const dynamic = 'force-dynamic';
 
-import { prisma } from '@/lib/prisma';
 import { formatPrice } from '@/lib/utils';
 import Link from 'next/link';
 import { Package, ShoppingCart, DollarSign, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 async function getDashboardData() {
-  const [
-    totalProducts,
-    activeProducts,
-    totalOrders,
-    pendingOrders,
-    paidOrders,
-    shippedOrders,
-    recentOrders,
-    topProducts,
-    totalRevenue,
-  ] = await Promise.all([
-    prisma.product.count(),
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.order.count(),
-    prisma.order.count({ where: { status: 'pending' } }),
-    prisma.order.count({ where: { status: 'paid' } }),
-    prisma.order.count({ where: { status: 'shipped' } }),
-    prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-      include: { items: true },
-    }),
-    prisma.product.findMany({
-      orderBy: { soldCount: 'desc' },
-      take: 5,
-      select: { id: true, name: true, price: true, soldCount: true, images: true },
-    }),
-    prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: { status: { in: ['paid', 'shipped', 'delivered'] } },
-    }),
-  ]);
-  return {
-    totalProducts,
-    activeProducts,
-    totalOrders,
-    pendingOrders,
-    paidOrders,
-    shippedOrders,
-    recentOrders,
-    topProducts,
-    totalRevenue: totalRevenue._sum.totalAmount || 0,
-  };
+  // Dynamic import to avoid build-time DB connection
+  const { prisma } = await import('@/lib/prisma');
+  
+  try {
+    const [
+      totalProducts,
+      activeProducts,
+      totalOrders,
+      pendingOrders,
+      paidOrders,
+      shippedOrders,
+      recentOrders,
+      topProducts,
+      totalRevenue,
+    ] = await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.order.count(),
+      prisma.order.count({ where: { status: 'pending' } }),
+      prisma.order.count({ where: { status: 'paid' } }),
+      prisma.order.count({ where: { status: 'shipped' } }),
+      prisma.order.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+        include: { items: true },
+      }),
+      prisma.product.findMany({
+        orderBy: { soldCount: 'desc' },
+        take: 5,
+        select: { id: true, name: true, price: true, soldCount: true, images: true },
+      }),
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: { status: { in: ['paid', 'shipped', 'delivered'] } },
+      }),
+    ]);
+    return {
+      totalProducts,
+      activeProducts,
+      totalOrders,
+      pendingOrders,
+      paidOrders,
+      shippedOrders,
+      recentOrders,
+      topProducts,
+      totalRevenue: totalRevenue._sum.totalAmount || 0,
+    };
+  } catch {
+    return {
+      totalProducts: 0, activeProducts: 0, totalOrders: 0, pendingOrders: 0,
+      paidOrders: 0, shippedOrders: 0, recentOrders: [], topProducts: [], totalRevenue: 0,
+    };
+  }
 }
 
 const statusMap: Record<string, { label: string; class: string; icon: typeof Clock }> = {
