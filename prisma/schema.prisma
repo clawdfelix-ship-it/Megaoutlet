@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String   @default("管理員")
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id            Int         @id @default(autoincrement())
+  sku           String      @unique
+  name          String
+  slug          String      @unique
+  price         Float
+  originalPrice Float?
+  origin        String?
+  soldCount     Int         @default(0)
+  expiry        String?
+  packingSpec   String?
+  shipping      String?
+  shortDesc     String      @db.Text
+  detail        String      @db.LongText
+  images        String      @db.LongText
+  url           String?
+  categoryId    Int?
+  category      Category?   @relation(fields: [categoryId], references: [id])
+  isActive      Boolean     @default(true)
+  stock         Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orderItems    OrderItem[]
+  CartItem      CartItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([slug])
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  orderNo         String      @unique
+  customerName    String
+  customerPhone   String
+  customerAddress String
+  totalAmount     Float
+  status          String      @default("pending")
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+
+  @@index([orderNo])
+  @@index([status])
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id])
+  productName String
+  productSku  String
+  price       Float
+  quantity    Int
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  sessionId String
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, productId])
+  @@index([sessionId])
+}
