@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { RefreshCw, Clock, CheckCircle, AlertCircle, Database, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, Clock, CheckCircle, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminSettingsPage() {
@@ -44,7 +44,6 @@ export default function AdminSettingsPage() {
       </div>
 
       <div className="grid gap-6 max-w-3xl">
-        {/* HKTVmall Sync */}
         <div className="bg-white rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -123,7 +122,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* Cron job info */}
         <div className="bg-white rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -153,7 +151,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* Store info */}
         <div className="bg-white rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">

@@ -83,7 +83,6 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-dark">商品管理</h1>
@@ -95,7 +94,6 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
-      {/* Search */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
         <form onSubmit={handleSearch} className="flex gap-3">
           <div className="relative flex-1">
@@ -121,7 +119,6 @@ export default function AdminProductsPage() {
         </form>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -217,7 +214,6 @@ export default function AdminProductsPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
             <p className="text-sm text-gray-400">

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Package, ShoppingCart, DollarSign, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 async function getDashboardData() {
-  // Dynamic import to avoid build-time DB connection
   const { prisma } = await import('@/lib/prisma');
   
   try {
@@ -73,13 +72,11 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-dark">控制台</h1>
         <p className="text-sm text-gray-400 mt-1">歡迎回來，查看店鋪概覽</p>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           {
@@ -129,7 +126,6 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent orders */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-dark">最近訂單</h2>
@@ -172,7 +168,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Top products */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-dark">暢銷商品</h2>

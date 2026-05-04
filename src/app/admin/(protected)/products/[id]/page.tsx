@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
-import { ArrowLeft, Save, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Product {
@@ -136,7 +136,6 @@ export default function ProductEditPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/admin/products" className="text-gray-400 hover:text-gray-600">
@@ -156,7 +155,6 @@ export default function ProductEditPage() {
         </button>
       </div>
 
-      {/* Preview card */}
       {product && (
         <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4 items-center">
           <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden shrink-0">
@@ -182,7 +180,6 @@ export default function ProductEditPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Basic info */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="font-semibold text-dark mb-4">基本資訊</h3>
           <div className="grid md:grid-cols-2 gap-4">
@@ -303,7 +300,6 @@ export default function ProductEditPage() {
           </div>
         </div>
 
-        {/* Description */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="font-semibold text-dark mb-4">商品描述</h3>
           <div className="space-y-4">

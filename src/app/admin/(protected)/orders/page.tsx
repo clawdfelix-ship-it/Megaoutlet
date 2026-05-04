@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatPrice } from '@/lib/utils';
 import Link from 'next/link';
-import { Search, ChevronLeft, ChevronRight, Eye, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Order {
@@ -63,7 +63,6 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-xl p-4 mb-6 flex flex-wrap gap-3">
         <select
           value={statusFilter}
@@ -79,7 +78,6 @@ export default function AdminOrdersPage() {
         </select>
       </div>
 
-      {/* Orders table */}
       <div className="bg-white rounded-xl overflow-hidden">
         <table className="data-table">
           <thead>
@@ -97,7 +95,7 @@ export default function AdminOrdersPage() {
             {orders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-gray-400">
-                  暫無訂單
+                  {loading ? '載入中...' : '暫無訂單'}
                 </td>
               </tr>
             ) : orders.map((order) => {
@@ -132,7 +130,6 @@ export default function AdminOrdersPage() {
         </table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6">
           <button
