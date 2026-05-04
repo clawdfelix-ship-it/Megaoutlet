@@ -41,7 +41,7 @@ export default function ProductsContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [selectedOrigin, setSelectedOrigin] = useState('');
+  const [selectedOrigin, setSelectedOrigin] = useState(searchParams.get('origin') || '');
   const [sort, setSort] = useState(searchParams.get('sort') || 'default');
   const [page, setPage] = useState(1);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
@@ -56,6 +56,20 @@ export default function ProductsContent() {
   useEffect(() => {
     setLoading(isLoading);
   }, [isLoading]);
+
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    const category = searchParams.get('category') || '';
+    const origin = searchParams.get('origin') || '';
+    const sortParam = searchParams.get('sort') || 'default';
+    const pageParam = Number(searchParams.get('page') || '1');
+
+    setSearch(q);
+    setSelectedCategory(category);
+    setSelectedOrigin(origin);
+    setSort(sortParam);
+    setPage(Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1);
+  }, [searchParams]);
 
   useEffect(() => {
     if (data) {

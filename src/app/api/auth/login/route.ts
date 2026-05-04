@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'megaoutlet-secret-key-change-in-production';
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'admin@megaoutlet.com';
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,18 +22,22 @@ export async function POST(req: NextRequest) {
       // Create default admin if none exists
       const admins = await prisma.admin.count();
       if (admins === 0) {
-        const hashed = await bcrypt.hash('admin123', 10);
-        await prisma.admin.create({
-          data: { email: 'admin@megaoutlet.com', password: hashed, name: '管理員' },
+        if (email !== DEFAULT_ADMIN_EMAIL || password !== DEFAULT_ADMIN_PASSWORD) {
+          return NextResponse.json({ error: '電郵或密碼錯誤' }, { status: 401 });
+        }
+
+        const hashed = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+        const createdAdmin = await prisma.admin.create({
+          data: { email: DEFAULT_ADMIN_EMAIL, password: hashed, name: '管理員' },
         });
         const token = jwt.sign(
-          { id: 1, email: 'admin@megaoutlet.com', name: '管理員' },
+          { id: createdAdmin.id, email: createdAdmin.email, name: createdAdmin.name },
           JWT_SECRET,
           { expiresIn: '7d' }
         );
         const res = NextResponse.json({
           token,
-          admin: { id: 1, email: 'admin@megaoutlet.com', name: '管理員' },
+          admin: { id: createdAdmin.id, email: createdAdmin.email, name: createdAdmin.name },
         });
         res.cookies.set('admin_token', token, {
           httpOnly: true,

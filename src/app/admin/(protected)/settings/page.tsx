@@ -172,10 +172,6 @@ export default function AdminSettingsPage() {
               <p className="font-mono">H9456001</p>
             </div>
             <div>
-              <span className="text-gray-400">默認登入</span>
-              <p className="font-mono">admin@megaoutlet.com / admin123</p>
-            </div>
-            <div>
               <span className="text-gray-400">商品數據</span>
               <p className="font-semibold">176 個（已爬取）</p>
             </div>
