@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     const order = await prisma.order.findUnique({
       where: { id: parseInt(params.id) },
       include: { items: { include: { product: true } } },

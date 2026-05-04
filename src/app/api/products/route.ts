@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category') || '';
     const origin = searchParams.get('origin') || '';

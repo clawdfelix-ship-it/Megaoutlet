@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -8,6 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'megaoutlet-secret-key-change-in-pr
 
 export async function POST(req: NextRequest) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     const { email, password } = await req.json();
 
     if (!email || !password) {

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma';
-import { verifyAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const { verifyAdmin } = await import('@/lib/auth');
   const admin = verifyAdmin(req);
   if (!admin) {
     return NextResponse.json({ error: '未授權' }, { status: 401 });
   }
 
   try {
+    const { prisma } = await import('@/lib/prisma');
     const [totalProducts, activeProducts, totalOrders, pendingOrders, recentOrders] = await Promise.all([
       prisma.product.count(),
       prisma.product.count({ where: { isActive: true } }),

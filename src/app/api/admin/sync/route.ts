@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { prisma } from '@/lib/prisma';
-import { verifyAdmin } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  const { verifyAdmin } = await import('@/lib/auth');
   const admin = verifyAdmin(req);
   if (!admin) {
     return NextResponse.json({ error: '未授權' }, { status: 401 });
   }
 
   try {
+    const { prisma } = await import('@/lib/prisma');
     const fs = require('fs');
     const path = '/tmp/megaoutlet_all_products.json';
 
