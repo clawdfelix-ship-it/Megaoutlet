@@ -10,15 +10,46 @@ export async function POST(req: NextRequest) {
 
   try {
     const { prisma } = await import('@/lib/prisma');
-    const fs = require('fs');
-    const path = '/tmp/megaoutlet_all_products.json';
+    let products: any[] | null = null;
 
-    if (!fs.existsSync(path)) {
-      return NextResponse.json({ error: '找不到爬蟲數據，請先運行爬蟲' }, { status: 400 });
+    try {
+      const body = await req.json();
+      if (Array.isArray(body)) {
+        products = body;
+      } else if (Array.isArray(body?.products)) {
+        products = body.products;
+      }
+    } catch {}
+
+    if (!products) {
+      const fs = require('fs');
+      const path = '/tmp/megaoutlet_all_products.json';
+      if (fs.existsSync(path)) {
+        const raw = fs.readFileSync(path, 'utf-8');
+        products = JSON.parse(raw);
+      }
     }
 
-    const raw = fs.readFileSync(path, 'utf-8');
-    const products = JSON.parse(raw);
+    if (!products && process.env.SCRAPE_DATA_URL) {
+      const res = await fetch(process.env.SCRAPE_DATA_URL, { cache: 'no-store' });
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: `讀取爬蟲數據失敗（SCRAPE_DATA_URL）：${res.status}` },
+          { status: 400 }
+        );
+      }
+      products = await res.json();
+    }
+
+    if (!products) {
+      return NextResponse.json(
+        {
+          error:
+            '找不到爬蟲數據：請上傳 JSON 檔案再同步，或設定環境變數 SCRAPE_DATA_URL，或在本機提供 /tmp/megaoutlet_all_products.json',
+        },
+        { status: 400 }
+      );
+    }
 
     let imported = 0;
     let updated = 0;
