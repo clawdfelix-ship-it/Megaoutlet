@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     const { customerName, customerPhone, customerAddress, items, notes } = await req.json();
 
     if (!customerName || !customerPhone || !customerAddress || !items?.length) {

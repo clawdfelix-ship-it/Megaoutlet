@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     const body = await req.json();
     const { status } = body;
 
@@ -43,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { prisma } = await import('@/lib/prisma');
     await prisma.order.delete({
       where: { id: parseInt(params.id) },
     });
