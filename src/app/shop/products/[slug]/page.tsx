@@ -9,7 +9,8 @@ import { ProductDetailClient } from './ProductDetailClient';
 async function getProduct(slug: string) {
   const { prisma } = await import('@/lib/prisma');
   try {
-    return await prisma.product.findUnique({ where: { slug, isActive: true } });
+    const p = await prisma.product.findUnique({ where: { slug } });
+    return p?.isActive ? p : null;
   } catch { return null; }
 }
 
