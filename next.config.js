@@ -16,6 +16,20 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/cart',
+        destination: '/shop/cart',
+        permanent: true,
+      },
+      {
+        source: '/cart/checkout',
+        destination: '/shop/cart/checkout',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [];
   },
