@@ -4,7 +4,9 @@ import json, re, time
 import os
 from pathlib import Path
 
-DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "megaoutlet_all_products.json"
+DEFAULT_DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "megaoutlet_all_products.json"
+INPUT_FILE = Path(os.getenv("SCRAPE_INPUT_PATH") or DEFAULT_DATA_FILE)
+OUTPUT_FILE = Path(os.getenv("SCRAPE_OUTPUT_PATH") or INPUT_FILE)
 
 
 def parse_detail(text: str):
@@ -27,10 +29,10 @@ def parse_detail(text: str):
 
 
 def main():
-    if not DATA_FILE.exists():
-        raise SystemExit(f"Missing data file: {DATA_FILE}")
+    if not INPUT_FILE.exists():
+        raise SystemExit(f"Missing data file: {INPUT_FILE}")
 
-    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    raw = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
     products = raw if isinstance(raw, list) else raw.get("products", [])
     if not isinstance(products, list) or len(products) == 0:
         raise SystemExit("No products found in data file")
@@ -43,7 +45,7 @@ def main():
             seen.add(sku)
             skus.append(sku)
 
-    out = []
+    out_by_sku = {}
     limit_env = os.getenv("SCRAPE_LIMIT", "").strip()
     limit = int(limit_env) if limit_env.isdigit() else 0
     if limit > 0:
@@ -51,16 +53,39 @@ def main():
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page()
-        page.set_default_timeout(15000)
+        context = browser.new_context()
+        context.set_default_timeout(15000)
+
+        def should_replace(existing: dict, incoming: dict):
+            try:
+                ex_imgs = existing.get("images") or []
+                in_imgs = incoming.get("images") or []
+                ex_len = len(ex_imgs) if isinstance(ex_imgs, list) else 0
+                in_len = len(in_imgs) if isinstance(in_imgs, list) else 0
+                if in_len != ex_len:
+                    return in_len > ex_len
+                return len((incoming.get("name") or "").strip()) >= len((existing.get("name") or "").strip())
+            except Exception:
+                return True
+
         for i, sku in enumerate(skus, start=1):
             url = f"https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001/p/{sku}"
+            page = context.new_page()
             try:
-                page.goto(url, timeout=25000, wait_until="domcontentloaded")
-                page.wait_for_selector(".product-title-name", timeout=10000)
-                page.wait_for_timeout(300)
+                page.goto(url, timeout=30000, wait_until="load")
+                page.wait_for_selector(".product-title-name", timeout=15000)
+                page.wait_for_selector('meta[property="og:image"]', timeout=15000)
+                page.wait_for_timeout(400)
                 final_url = page.url
                 final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
+                page.wait_for_function(
+                    """(s) => {
+                      const u = document.querySelector('meta[property="og:url"]')?.getAttribute('content') || '';
+                      return u.includes(s);
+                    }""",
+                    final_sku,
+                    timeout=10000,
+                )
                 d = page.evaluate(
                     """
                     () => ({
@@ -116,16 +141,25 @@ def main():
                     "images": imgs,
                     "url": final_url,
                 }
-                out.append(prod)
+                existing = out_by_sku.get(final_sku)
+                if existing is None or should_replace(existing, prod):
+                    out_by_sku[final_sku] = prod
                 print(f"{i}/{len(skus)} {final_sku} images={len(imgs)}")
                 if i % 10 == 0:
-                    DATA_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+                    out_list = sorted(out_by_sku.values(), key=lambda x: x.get("sku") or "")
+                    OUTPUT_FILE.write_text(json.dumps(out_list, ensure_ascii=False, indent=2), encoding="utf-8")
                 time.sleep(0.3)
             except Exception:
                 continue
+            finally:
+                try:
+                    page.close()
+                except Exception:
+                    pass
         browser.close()
 
-    DATA_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_list = sorted(out_by_sku.values(), key=lambda x: x.get("sku") or "")
+    OUTPUT_FILE.write_text(json.dumps(out_list, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

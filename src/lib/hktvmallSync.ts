@@ -4,6 +4,7 @@ export async function syncHKTVmallProducts(products: any[]) {
   let imported = 0;
   let updated = 0;
   let errors = 0;
+  let deduped = 0;
 
   const normalizeImages = (raw: unknown) => {
     if (!Array.isArray(raw)) return [];
@@ -25,7 +26,35 @@ export async function syncHKTVmallProducts(products: any[]) {
     return uniq;
   };
 
+  const bestBySku = new Map<string, any>();
   for (const p of products) {
+    const sku = (p?.sku ?? '').toString().trim();
+    const name = (p?.name ?? '').toString().trim();
+    if (!sku || !name) continue;
+
+    const prev = bestBySku.get(sku);
+    if (!prev) {
+      bestBySku.set(sku, p);
+      continue;
+    }
+
+    const prevImgs = Array.isArray(prev?.images) ? prev.images.length : 0;
+    const nextImgs = Array.isArray(p?.images) ? p.images.length : 0;
+    if (nextImgs > prevImgs) {
+      bestBySku.set(sku, p);
+      continue;
+    }
+    if (nextImgs < prevImgs) continue;
+
+    if (name.length > ((prev?.name ?? '').toString().trim().length || 0)) {
+      bestBySku.set(sku, p);
+    }
+  }
+
+  const uniqueProducts = Array.from(bestBySku.values());
+  deduped = Math.max(0, products.length - uniqueProducts.length);
+
+  for (const p of uniqueProducts) {
     try {
       const sku = (p?.sku ?? '').toString().trim();
       const name = (p?.name ?? '').toString().trim();
@@ -118,5 +147,5 @@ export async function syncHKTVmallProducts(products: any[]) {
     }
   }
 
-  return { imported, updated, total: products.length, errors };
+  return { imported, updated, total: products.length, processed: uniqueProducts.length, deduped, errors };
 }

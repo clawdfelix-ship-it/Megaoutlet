@@ -43,7 +43,7 @@ function parseSoldCount(count: string): number {
 async function main() {
   console.log('🚀 開始同步產品數據...\n');
 
-  const jsonPath = path.join(__dirname, '../../megaoutlet_all_products.json');
+  const jsonPath = path.join(__dirname, '../data/megaoutlet_all_products.json');
   const rawData = fs.readFileSync(jsonPath, 'utf-8');
   const products: ProductData[] = JSON.parse(rawData);
 
