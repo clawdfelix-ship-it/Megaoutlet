@@ -21,7 +21,8 @@ interface Order {
 
 const statusMap: Record<string, { label: string; class: string; icon: typeof Clock }> = {
   pending: { label: '待處理', class: 'status-pending', icon: Clock },
-  confirmed: { label: '已確認', class: 'status-paid', icon: CheckCircle },
+  paid: { label: '已付款', class: 'status-paid', icon: CheckCircle },
+  confirmed: { label: '已付款', class: 'status-paid', icon: CheckCircle },
   shipped: { label: '已發貨', class: 'status-shipped', icon: Truck },
   delivered: { label: '已完成', class: 'status-delivered', icon: CheckCircle },
   cancelled: { label: '已取消', class: 'status-cancelled', icon: XCircle },
@@ -71,7 +72,7 @@ export default function AdminOrdersPage() {
         >
           <option value="">全部狀態</option>
           <option value="pending">待處理</option>
-          <option value="confirmed">已確認</option>
+          <option value="paid">已付款</option>
           <option value="shipped">已發貨</option>
           <option value="delivered">已完成</option>
           <option value="cancelled">已取消</option>
