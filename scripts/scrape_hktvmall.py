@@ -7,6 +7,7 @@ from pathlib import Path
 DEFAULT_DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "megaoutlet_all_products.json"
 INPUT_FILE = Path(os.getenv("SCRAPE_INPUT_PATH") or DEFAULT_DATA_FILE)
 OUTPUT_FILE = Path(os.getenv("SCRAPE_OUTPUT_PATH") or INPUT_FILE)
+STORE_URL = os.getenv("SCRAPE_STORE_URL") or "https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001"
 
 
 def parse_detail(text: str):
@@ -28,28 +29,76 @@ def parse_detail(text: str):
     return r
 
 
+def discover_skus(page):
+    page.goto(STORE_URL, timeout=60000, wait_until="domcontentloaded")
+    try:
+        page.wait_for_selector('a[href*="/p/"]', timeout=15000)
+    except Exception:
+        pass
+    page.wait_for_timeout(800)
+
+    try:
+        html = page.content()
+        m = set(re.findall(r"/p/(H9456001_S_[A-Za-z0-9_]+)", html))
+        if len(m) > 0:
+            return sorted(m)
+    except Exception:
+        pass
+
+    skus = set()
+    prev_count = 0
+    stable = 0
+
+    for _ in range(40):
+        hrefs = page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('a[href*="/p/"]'))
+              .map(a => a.href || a.getAttribute('href') || '')
+              .filter(Boolean)
+            """
+        )
+        if isinstance(hrefs, list):
+            for h in hrefs:
+                if not isinstance(h, str):
+                    continue
+                if "/s/H9456001/p/" not in h:
+                    continue
+                sku = h.split("/p/", 1)[-1]
+                sku = sku.split("?", 1)[0].split("#", 1)[0].strip()
+                if sku:
+                    skus.add(sku)
+
+        if prev_count > 0 and len(skus) == prev_count:
+            stable += 1
+        else:
+            stable = 0
+            prev_count = len(skus)
+
+        if stable >= 3 and prev_count > 0:
+            break
+
+        page.mouse.wheel(0, 2400)
+        page.wait_for_timeout(800)
+
+    return sorted(skus)
+
+
 def main():
-    if not INPUT_FILE.exists():
-        raise SystemExit(f"Missing data file: {INPUT_FILE}")
-
-    raw = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
-    products = raw if isinstance(raw, list) else raw.get("products", [])
-    if not isinstance(products, list) or len(products) == 0:
-        raise SystemExit("No products found in data file")
-
     skus = []
     seen = set()
-    for p in products:
-        sku = str(p.get("sku") or "").strip()
-        if sku and sku not in seen:
-            seen.add(sku)
-            skus.append(sku)
+    if INPUT_FILE.exists():
+        raw = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
+        products = raw if isinstance(raw, list) else raw.get("products", [])
+        if isinstance(products, list):
+            for p in products:
+                sku = str(p.get("sku") or "").strip()
+                if sku and sku not in seen:
+                    seen.add(sku)
+                    skus.append(sku)
 
     out_by_sku = {}
     limit_env = os.getenv("SCRAPE_LIMIT", "").strip()
     limit = int(limit_env) if limit_env.isdigit() else 0
-    if limit > 0:
-        skus = skus[:limit]
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -68,30 +117,43 @@ def main():
             except Exception:
                 return True
 
+        if len(skus) == 0:
+            seed_page = context.new_page()
+            try:
+                skus = discover_skus(seed_page)
+                if limit > 0:
+                    skus = skus[:limit]
+                print(f"discovered skus={len(skus)}")
+            finally:
+                try:
+                    seed_page.close()
+                except Exception:
+                    pass
+        else:
+            if limit > 0:
+                skus = skus[:limit]
+
         for i, sku in enumerate(skus, start=1):
             url = f"https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001/p/{sku}"
             page = context.new_page()
             try:
                 page.goto(url, timeout=30000, wait_until="load")
-                page.wait_for_selector(".product-title-name", timeout=15000)
-                page.wait_for_selector('meta[property="og:image"]', timeout=15000)
+                page.wait_for_selector('meta[property="og:title"]', timeout=15000, state="attached")
+                page.wait_for_selector('meta[property="og:image"]', timeout=15000, state="attached")
                 page.wait_for_timeout(400)
                 final_url = page.url
                 final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
-                page.wait_for_function(
-                    """(s) => {
-                      const u = document.querySelector('meta[property="og:url"]')?.getAttribute('content') || '';
-                      return u.includes(s);
-                    }""",
-                    final_sku,
-                    timeout=10000,
-                )
                 d = page.evaluate(
                     """
                     () => ({
-                        name: document.querySelector('.product-title-name')?.innerText.trim() || '',
+                        ogTitle: document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '',
+                        name: document.querySelector('.product-title-name')?.innerText.trim()
+                          || document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
+                          || '',
                         price: document.querySelector('.product-price')?.innerText.trim() || '',
-                        desc: document.querySelector('.product-description')?.innerText.trim() || '',
+                        desc: document.querySelector('.product-description')?.innerText.trim()
+                          || document.querySelector('meta[name="description"]')?.getAttribute('content')?.trim()
+                          || '',
                         detail: document.querySelector('.product-detail')?.innerText.trim() || '',
                         ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute('content') || '',
                         images: Array.from(document.querySelectorAll('.product-image img'))
@@ -149,7 +211,11 @@ def main():
                     out_list = sorted(out_by_sku.values(), key=lambda x: x.get("sku") or "")
                     OUTPUT_FILE.write_text(json.dumps(out_list, ensure_ascii=False, indent=2), encoding="utf-8")
                 time.sleep(0.3)
-            except Exception:
+            except Exception as e:
+                try:
+                    print(f"skip {sku}: {type(e).__name__}: {e}")
+                except Exception:
+                    pass
                 continue
             finally:
                 try:
