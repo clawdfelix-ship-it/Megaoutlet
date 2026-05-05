@@ -14,6 +14,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [orderNo, setOrderNo] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [step, setStep] = useState<'form' | 'success'>('form');
   const shippingFee = totalPrice() >= 199 ? 0 : 30;
 
@@ -35,17 +36,23 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone || !form.address) {
+    if (!form.name || !form.phone || !form.address || !paymentMethod) {
       toast.error('請填寫所有必填欄位');
       return;
     }
     setLoading(true);
     try {
+      const noteParts = [
+        `付款方式: ${paymentMethod}`,
+        form.notes?.trim() ? `備註: ${form.notes.trim()}` : '',
+      ].filter(Boolean);
+
       const orderData = {
         customerName: form.name,
         customerPhone: form.phone,
         customerAddress: form.address,
-        notes: form.notes,
+        notes: noteParts.join('\n'),
+        paymentMethod,
         items: items.map((item) => ({
           id: item.id,
           name: item.name,
@@ -88,6 +95,7 @@ export default function CheckoutPage() {
             <p className="text-sm text-gray-500 mb-1">訂單編號</p>
             <p className="text-xl font-bold text-primary">{orderNo}</p>
           </div>
+          <p className="text-sm text-gray-500 mb-2">付款方式：{paymentMethod}</p>
           <p className="text-sm text-gray-400 mb-6">
             我們將在2個工作日內發貨，並以 SMS 通知您送貨安排。
           </p>
@@ -148,6 +156,21 @@ export default function CheckoutPage() {
                 className="form-input"
                 placeholder="請輸入完整送貨地址"
               />
+            </div>
+
+            <div>
+              <label className="form-label">付款方式 *</label>
+              <select
+                required
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="form-input"
+              >
+                <option value="cod">貨到付款</option>
+                <option value="fps">轉數快 FPS</option>
+                <option value="payme">PayMe</option>
+                <option value="bank">銀行轉帳</option>
+              </select>
             </div>
 
             <div>

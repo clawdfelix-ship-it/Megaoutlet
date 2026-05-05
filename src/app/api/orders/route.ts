@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { prisma } = await import('@/lib/prisma');
-    const { customerName, customerPhone, customerAddress, items, notes } = await req.json();
+    const { customerName, customerPhone, customerAddress, items, notes, paymentMethod } = await req.json();
 
     if (!customerName || !customerPhone || !customerAddress || !items?.length) {
       return NextResponse.json({ error: '請填寫所有必填欄位' }, { status: 400 });
@@ -74,7 +74,10 @@ export async function POST(req: NextRequest) {
         customerAddress,
         totalAmount,
         status: 'pending',
-        notes: notes || '',
+        notes:
+          typeof paymentMethod === 'string' && paymentMethod.trim()
+            ? [`付款方式: ${paymentMethod.trim()}`, notes || ''].filter(Boolean).join('\n')
+            : notes || '',
         items: {
           create: normalizedItems.map((item: { id: number; sku: string; name: string; price: number; quantity: number }) => ({
             productId: item.id,
