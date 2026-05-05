@@ -4,11 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Plus, Search } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
 type OrderItem = {
   id: number;
+  productId: number;
+  productName: string;
+  productSku: string;
+  price: number;
+  quantity: number;
+};
+
+type EditableOrderItem = {
+  orderItemId?: number;
+  productId: number;
   productName: string;
   productSku: string;
   price: number;
@@ -36,6 +46,13 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'cancelled', label: '已取消' },
 ];
 
+type ProductSearchResult = {
+  id: number;
+  sku: string;
+  name: string;
+  price: number;
+};
+
 export default function AdminOrderDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -51,6 +68,14 @@ export default function AdminOrderDetailPage() {
     customerAddress: '',
     notes: '',
   });
+  const [itemsDraft, setItemsDraft] = useState<EditableOrderItem[]>([]);
+  const [productQuery, setProductQuery] = useState('');
+  const [productResults, setProductResults] = useState<ProductSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const draftTotalAmount = useMemo(() => {
+    return itemsDraft.reduce((sum, it) => sum + it.price * it.quantity, 0);
+  }, [itemsDraft]);
 
   const createdAtText = useMemo(() => {
     if (!order?.createdAt) return '';
@@ -80,12 +105,82 @@ export default function AdminOrderDetailPage() {
           customerAddress: o.customerAddress || '',
           notes: o.notes || '',
         });
+        setItemsDraft(
+          (o.items || []).map((it) => ({
+            orderItemId: it.id,
+            productId: it.productId,
+            productSku: it.productSku,
+            productName: it.productName,
+            price: it.price,
+            quantity: it.quantity,
+          }))
+        );
       })
       .catch((err) => {
         toast.error(err instanceof Error ? err.message : '載入失敗');
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleSearchProducts = async () => {
+    const q = productQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    try {
+      const params = new URLSearchParams({ q, page: '1', limit: '10' });
+      const res = await fetch(`/api/products?${params.toString()}`);
+      const data = await res.json().catch(() => null);
+      const list = Array.isArray(data?.products) ? data.products : [];
+      setProductResults(
+        list
+          .map((p: any) => ({
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            price: p.price,
+          }))
+          .filter((p: any) => typeof p.id === 'number' && typeof p.sku === 'string' && typeof p.name === 'string' && typeof p.price === 'number')
+      );
+    } catch {
+      toast.error('搜尋失敗');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addProductToOrder = (p: ProductSearchResult) => {
+    setItemsDraft((prev) => {
+      const idx = prev.findIndex((x) => x.productId === p.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          productId: p.id,
+          productSku: p.sku,
+          productName: p.name,
+          price: p.price,
+          quantity: 1,
+        },
+      ];
+    });
+    toast.success('已加入商品');
+  };
+
+  const updateDraftItem = (index: number, patch: Partial<EditableOrderItem>) => {
+    setItemsDraft((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const removeDraftItem = (index: number) => {
+    setItemsDraft((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSave = async () => {
     if (!order) return;
@@ -100,6 +195,14 @@ export default function AdminOrderDetailPage() {
           customerPhone: form.customerPhone,
           customerAddress: form.customerAddress,
           notes: form.notes,
+          items: itemsDraft.map((it) => ({
+            orderItemId: it.orderItemId,
+            productId: it.productId,
+            productSku: it.productSku,
+            productName: it.productName,
+            price: it.price,
+            quantity: it.quantity,
+          })),
         }),
       });
       const data = await res.json().catch(() => null);
@@ -107,8 +210,28 @@ export default function AdminOrderDetailPage() {
         const msg = typeof data?.error === 'string' ? data.error : '更新失敗';
         throw new Error(msg);
       }
-      toast.success('已更新狀態');
-      router.push('/admin/orders');
+      toast.success('已更新訂單');
+      const updated: Order | undefined = data?.order;
+      if (updated) {
+        setOrder(updated);
+        setStatus(updated.status || 'pending');
+        setForm({
+          customerName: updated.customerName || '',
+          customerPhone: updated.customerPhone || '',
+          customerAddress: updated.customerAddress || '',
+          notes: updated.notes || '',
+        });
+        setItemsDraft(
+          (updated.items || []).map((it) => ({
+            orderItemId: it.id,
+            productId: it.productId,
+            productSku: it.productSku,
+            productName: it.productName,
+            price: it.price,
+            quantity: it.quantity,
+          }))
+        );
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '更新失敗');
     } finally {
@@ -156,7 +279,7 @@ export default function AdminOrderDetailPage() {
         </div>
         <button onClick={handleSave} disabled={saving} className="btn btn-primary">
           <Save size={16} />
-          {saving ? '更新中...' : '更新狀態'}
+          {saving ? '更新中...' : '保存'}
         </button>
       </div>
 
@@ -206,19 +329,83 @@ export default function AdminOrderDetailPage() {
 
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100">
-              <h3 className="font-semibold text-dark">商品明細</h3>
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="font-semibold text-dark">商品明細</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={productQuery}
+                    onChange={(e) => setProductQuery(e.target.value)}
+                    placeholder="搜尋商品（SKU / 名稱）"
+                    className="form-input w-64"
+                  />
+                  <button onClick={handleSearchProducts} disabled={searching} className="btn btn-outline">
+                    <Search size={16} />
+                    {searching ? '搜尋中' : '搜尋'}
+                  </button>
+                </div>
+              </div>
             </div>
+
+            {productResults.length > 0 && (
+              <div className="p-4 border-b border-gray-100 bg-gray-50">
+                <div className="grid md:grid-cols-2 gap-2">
+                  {productResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => addProductToOrder(p)}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 hover:border-primary"
+                    >
+                      <div className="min-w-0 text-left">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-gray-400 truncate">SKU: {p.sku}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm font-semibold text-primary">{formatPrice(p.price)}</span>
+                        <Plus size={16} className="text-primary" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="divide-y divide-gray-100">
-              {order.items.map((it) => (
-                <div key={it.id} className="p-6 flex items-start justify-between gap-4">
+              {itemsDraft.map((it, idx) => (
+                <div key={`${it.orderItemId ?? 'new'}-${it.productId}`} className="p-6 flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{it.productName}</p>
                     <p className="text-xs text-gray-400 mt-1">SKU: {it.productSku}</p>
-                    <p className="text-xs text-gray-400 mt-1">x{it.quantity}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 max-w-xs">
+                      <div>
+                        <label className="form-label">數量</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={it.quantity}
+                          onChange={(e) => updateDraftItem(idx, { quantity: Math.max(1, parseInt(e.target.value || '1')) })}
+                          className="form-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">單價</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={it.price}
+                          onChange={(e) => updateDraftItem(idx, { price: Math.max(0, parseFloat(e.target.value || '0')) })}
+                          className="form-input"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-semibold text-primary">{formatPrice(it.price * it.quantity)}</p>
-                    <p className="text-xs text-gray-400 mt-1">{formatPrice(it.price)} / 件</p>
+                    <button type="button" onClick={() => removeDraftItem(idx)} className="btn btn-outline mt-3">
+                      <Trash2 size={16} />
+                      刪除
+                    </button>
                   </div>
                 </div>
               ))}
@@ -241,7 +428,7 @@ export default function AdminOrderDetailPage() {
 
             <div className="border-t border-gray-100 pt-4">
               <p className="text-sm text-gray-400 mb-1">總金額</p>
-              <p className="text-2xl font-bold text-primary price-tag">{formatPrice(order.totalAmount)}</p>
+              <p className="text-2xl font-bold text-primary price-tag">{formatPrice(draftTotalAmount)}</p>
             </div>
 
             <div className="border-t border-gray-100 pt-4">
