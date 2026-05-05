@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (category) {
-      where.category = { name: category };
+      where.category = { is: { name: category } };
     }
 
     let orderBy: Record<string, string> = {};

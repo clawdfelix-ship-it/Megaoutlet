@@ -48,8 +48,16 @@ export default function ProductsContent() {
 
   const limit = 24;
 
+  const query = new URLSearchParams();
+  if (search) query.set('q', search);
+  if (selectedCategory) query.set('category', selectedCategory);
+  if (selectedOrigin) query.set('origin', selectedOrigin);
+  if (sort) query.set('sort', sort);
+  query.set('page', String(page));
+  query.set('limit', String(limit));
+
   const { data, isLoading } = useSWR<ProductsResponse>(
-    `/products?q=${search}&category=${selectedCategory}&origin=${selectedOrigin}&sort=${sort}&page=${page}&limit=${limit}`,
+    `/products?${query.toString()}`,
     fetcher
   );
 
