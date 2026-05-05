@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useCartStore } from '@/lib/store';
-import { formatPrice, generateOrderNo } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Truck, CheckCircle } from 'lucide-react';
@@ -41,18 +41,15 @@ export default function CheckoutPage() {
     }
     setLoading(true);
     try {
-      const newOrderNo = generateOrderNo();
       const orderData = {
-        orderNo: newOrderNo,
         customerName: form.name,
         customerPhone: form.phone,
         customerAddress: form.address,
         notes: form.notes,
-        totalAmount: totalPrice() + shippingFee,
         items: items.map((item) => ({
-          productId: item.id,
-          productName: item.name,
-          productSku: item.sku,
+          id: item.id,
+          name: item.name,
+          sku: item.sku,
           price: item.price,
           quantity: item.quantity,
         })),
@@ -64,13 +61,17 @@ export default function CheckoutPage() {
         body: JSON.stringify(orderData),
       });
 
-      if (!res.ok) throw new Error('Order failed');
-      setOrderNo(newOrderNo);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = typeof data?.error === 'string' ? data.error : '提交訂單失敗，請稍後再試';
+        throw new Error(msg);
+      }
+      setOrderNo(data?.order?.orderNo || '');
       setStep('success');
       clearCart();
       toast.success('訂單已提交！');
     } catch (err) {
-      toast.error('提交訂單失敗，請稍後再試');
+      toast.error(err instanceof Error ? err.message : '提交訂單失敗，請稍後再試');
     } finally {
       setLoading(false);
     }

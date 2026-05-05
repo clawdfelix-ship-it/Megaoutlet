@@ -39,9 +39,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '請填寫所有必填欄位' }, { status: 400 });
     }
 
+    const normalizedItems = items
+      .map((item: any) => ({
+        id: typeof item?.id === 'number' ? item.id : item?.productId,
+        sku: typeof item?.sku === 'string' ? item.sku : item?.productSku,
+        name: typeof item?.name === 'string' ? item.name : item?.productName,
+        price: item?.price,
+        quantity: item?.quantity,
+      }))
+      .filter((i: any) => i.id != null && i.sku && i.name);
+
+    if (normalizedItems.length !== items.length) {
+      return NextResponse.json({ error: '商品資料不完整，請重新加入購物車再結帳' }, { status: 400 });
+    }
+
     // Calculate total
     let totalAmount = 0;
-    for (const item of items) {
+    for (const item of normalizedItems) {
       totalAmount += item.price * item.quantity;
     }
 
@@ -58,7 +72,7 @@ export async function POST(req: NextRequest) {
         status: 'pending',
         notes: notes || '',
         items: {
-          create: items.map((item: { id: number; sku: string; name: string; price: number; quantity: number }) => ({
+          create: normalizedItems.map((item: { id: number; sku: string; name: string; price: number; quantity: number }) => ({
             productId: item.id,
             productName: item.name,
             productSku: item.sku,
