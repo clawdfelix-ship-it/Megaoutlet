@@ -8,9 +8,21 @@ import { Truck, Shield, RefreshCw, ChevronRight, Clock, Package } from 'lucide-r
 import { ProductDetailClient } from './ProductDetailClient';
 import { prisma } from '@/lib/prisma';
 
-async function getProduct(slug: string) {
+function normalizeSlug(rawSlug: string) {
   try {
-    const p = await prisma.product.findUnique({ where: { slug } });
+    return decodeURIComponent(rawSlug);
+  } catch {
+    return rawSlug;
+  }
+}
+
+async function getProduct(rawSlug: string) {
+  try {
+    const slug = normalizeSlug(rawSlug);
+    let p = await prisma.product.findUnique({ where: { slug } });
+    if (!p && slug !== rawSlug) {
+      p = await prisma.product.findUnique({ where: { slug: rawSlug } });
+    }
     return p?.isActive ? p : null;
   } catch (err) {
     console.error(err);
