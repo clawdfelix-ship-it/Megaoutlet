@@ -8,6 +8,15 @@ import { useState } from 'react';
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const totalItems = useCartStore((s) => s.totalItems());
+  const navItems: { label: string; href: string }[] = [
+    { label: '全部商品', href: '/shop/products' },
+    { label: '日本', href: `/shop/products?origin=${encodeURIComponent('日本')}` },
+    { label: '泰國', href: `/shop/products?origin=${encodeURIComponent('泰國')}` },
+    { label: '零食甜品', href: `/shop/products?category=${encodeURIComponent('零食甜品')}` },
+    { label: '個人護理', href: `/shop/products?category=${encodeURIComponent('個人護理')}` },
+    { label: '寵物用品', href: `/shop/products?category=${encodeURIComponent('寵物用品')}` },
+    { label: '其他', href: `/shop/products?category=${encodeURIComponent('其他')}` },
+  ];
 
   return (
     <header className="bg-dark sticky top-0 z-50 shadow-md">
@@ -97,13 +106,13 @@ export function Header() {
       <div className="border-t border-white/10 bg-dark-100 hidden md:block">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex items-center gap-1 h-10 text-sm overflow-x-auto">
-            {['全部商品', '日本零食', '泰國零食', '保健品', '個人護理', '母嬰用品', '家居用品'].map((cat) => (
+            {navItems.map((item) => (
               <Link
-                key={cat}
-                href={cat === '全部商品' ? '/shop/products' : `/shop/products?category=${encodeURIComponent(cat)}`}
+                key={item.label}
+                href={item.href}
                 className="whitespace-nowrap text-white/80 hover:text-white px-3 py-1.5 rounded hover:bg-white/10 transition-colors"
               >
-                {cat}
+                {item.label}
               </Link>
             ))}
           </nav>
@@ -114,14 +123,14 @@ export function Header() {
       {mobileOpen && (
         <div className="md:hidden bg-dark-100 border-t border-white/10">
           <nav className="flex flex-col px-4 py-3 gap-1">
-            {['全部商品', '日本零食', '泰國零食', '保健品', '個人護理', '母嬰用品', '家居用品'].map((cat) => (
+            {navItems.map((item) => (
               <Link
-                key={cat}
-                href={cat === '全部商品' ? '/shop/products' : `/shop/products?category=${encodeURIComponent(cat)}`}
+                key={item.label}
+                href={item.href}
                 className="text-white/80 hover:text-white py-2.5 px-3 rounded hover:bg-white/10 transition-colors"
                 onClick={() => setMobileOpen(false)}
               >
-                {cat}
+                {item.label}
               </Link>
             ))}
             <hr className="border-white/10 my-1" />

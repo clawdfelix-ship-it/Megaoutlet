@@ -119,7 +119,7 @@ export default function ProductsContent() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-dark">
-            {selectedCategory || '全部商品'}
+            {selectedCategory || selectedOrigin || '全部商品'}
           </h1>
           <p className="text-sm text-gray-400 mt-1">
             {loading ? '載入中...' : `${total} 件商品`}
