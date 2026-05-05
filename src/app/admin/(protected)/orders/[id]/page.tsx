@@ -45,6 +45,12 @@ export default function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('pending');
+  const [form, setForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerAddress: '',
+    notes: '',
+  });
 
   const createdAtText = useMemo(() => {
     if (!order?.createdAt) return '';
@@ -68,6 +74,12 @@ export default function AdminOrderDetailPage() {
         if (!o) throw new Error('載入失敗');
         setOrder(o);
         setStatus(o.status || 'pending');
+        setForm({
+          customerName: o.customerName || '',
+          customerPhone: o.customerPhone || '',
+          customerAddress: o.customerAddress || '',
+          notes: o.notes || '',
+        });
       })
       .catch((err) => {
         toast.error(err instanceof Error ? err.message : '載入失敗');
@@ -82,7 +94,13 @@ export default function AdminOrderDetailPage() {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          customerAddress: form.customerAddress,
+          notes: form.notes,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -148,23 +166,41 @@ export default function AdminOrderDetailPage() {
             <h3 className="font-semibold text-dark mb-4">收件資料</h3>
             <div className="grid md:grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-400 mb-1">姓名</p>
-                <p className="font-medium">{order.customerName}</p>
+                <label className="form-label">姓名</label>
+                <input
+                  type="text"
+                  value={form.customerName}
+                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                  className="form-input"
+                />
               </div>
               <div>
-                <p className="text-gray-400 mb-1">電話</p>
-                <p className="font-medium">{order.customerPhone}</p>
+                <label className="form-label">電話</label>
+                <input
+                  type="text"
+                  value={form.customerPhone}
+                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                  className="form-input"
+                />
               </div>
               <div className="md:col-span-2">
-                <p className="text-gray-400 mb-1">地址</p>
-                <p className="font-medium">{order.customerAddress}</p>
+                <label className="form-label">地址</label>
+                <input
+                  type="text"
+                  value={form.customerAddress}
+                  onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
+                  className="form-input"
+                />
               </div>
-              {order.notes && (
-                <div className="md:col-span-2">
-                  <p className="text-gray-400 mb-1">備註</p>
-                  <p className="font-medium whitespace-pre-wrap">{order.notes}</p>
-                </div>
-              )}
+              <div className="md:col-span-2">
+                <label className="form-label">備註</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="form-input"
+                  rows={3}
+                />
+              </div>
             </div>
           </div>
 
@@ -218,4 +254,3 @@ export default function AdminOrderDetailPage() {
     </div>
   );
 }
-

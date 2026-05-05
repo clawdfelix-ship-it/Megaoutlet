@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
+import { verifyAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const admin = verifyAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { prisma } = await import('@/lib/prisma');
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');

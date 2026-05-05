@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
+import { verifyAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const admin = verifyAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { prisma } = await import('@/lib/prisma');
     const order = await prisma.order.findUnique({
       where: { id: parseInt(params.id) },
@@ -20,9 +24,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const admin = verifyAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { prisma } = await import('@/lib/prisma');
     const body = await req.json();
-    const { status } = body;
+    const { status, customerName, customerPhone, customerAddress, notes } = body;
 
     const validStatuses = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
     if (status && !validStatuses.includes(status)) {
@@ -31,7 +38,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const order = await prisma.order.update({
       where: { id: parseInt(params.id) },
-      data: { status },
+      data: {
+        ...(status ? { status } : {}),
+        ...(typeof customerName === 'string' ? { customerName } : {}),
+        ...(typeof customerPhone === 'string' ? { customerPhone } : {}),
+        ...(typeof customerAddress === 'string' ? { customerAddress } : {}),
+        ...(typeof notes === 'string' ? { notes } : {}),
+      },
       include: { items: true },
     });
 
@@ -44,6 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const admin = verifyAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { prisma } = await import('@/lib/prisma');
     await prisma.order.delete({
       where: { id: parseInt(params.id) },
