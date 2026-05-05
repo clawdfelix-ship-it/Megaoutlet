@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
+import { verifyAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +13,8 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    const where: Record<string, unknown> = { isActive: true };
+    const admin = verifyAdmin(req);
+    const where: Record<string, unknown> = admin ? {} : { isActive: true };
 
     if (q) {
       where.OR = [
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.product.count({ where }),
       prisma.product.findMany({
-        where: { isActive: true },
+        where: admin ? {} : { isActive: true },
         select: { origin: true, category: { select: { name: true } } },
       }),
     ]);
@@ -92,6 +94,76 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Products API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const admin = verifyAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { prisma } = await import('@/lib/prisma');
+    const body = await req.json();
+    const {
+      sku,
+      name,
+      slug,
+      price,
+      originalPrice,
+      origin,
+      soldCount,
+      expiry,
+      packingSpec,
+      shipping,
+      shortDesc,
+      detail,
+      images,
+      stock,
+      isActive,
+    } = body || {};
+
+    if (!name || typeof price !== 'number') {
+      return NextResponse.json({ error: '請填寫必填欄位' }, { status: 400 });
+    }
+
+    const safeSku =
+      typeof sku === 'string' && sku.trim() ? sku.trim() : `MO-SKU-${Date.now()}`;
+    const safeName = String(name);
+    const safeSlug =
+      typeof slug === 'string' && slug.trim()
+        ? slug.trim()
+        : `${safeName
+            .toLowerCase()
+            .replace(/[^a-z0-9\u4e00-\u9fff]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 48)}-${safeSku}`;
+
+    const product = await prisma.product.create({
+      data: {
+        sku: safeSku,
+        name: safeName,
+        slug: safeSlug,
+        price,
+        originalPrice: typeof originalPrice === 'number' ? originalPrice : null,
+        origin: typeof origin === 'string' ? origin : null,
+        soldCount: typeof soldCount === 'number' ? soldCount : 0,
+        expiry: typeof expiry === 'string' ? expiry : null,
+        packingSpec: typeof packingSpec === 'string' ? packingSpec : null,
+        shipping: typeof shipping === 'string' ? shipping : null,
+        shortDesc: typeof shortDesc === 'string' ? shortDesc : '',
+        detail: typeof detail === 'string' ? detail : '',
+        images: typeof images === 'string' ? images : '[]',
+        stock: typeof stock === 'number' ? stock : 0,
+        isActive: typeof isActive === 'boolean' ? isActive : true,
+      },
+      include: { category: true },
+    });
+
+    return NextResponse.json({ product });
+  } catch (error) {
+    console.error('Create product error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
@@ -54,9 +54,9 @@ export default function AdminProductsPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     loadProducts(1, '');
-  });
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

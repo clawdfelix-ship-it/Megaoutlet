@@ -106,8 +106,8 @@ export default function ProductEditPage() {
         stock: parseInt(form.stock) || 0,
         isActive: form.isActive,
       };
-      const res = await fetch(`/api/products/${id}`, {
-        method: 'PATCH',
+      const res = await fetch(id === 'new' ? '/api/products' : `/api/products/${id}`, {
+        method: id === 'new' ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -115,7 +115,8 @@ export default function ProductEditPage() {
         toast.success('保存成功');
         router.push('/admin/products');
       } else {
-        toast.error('保存失敗');
+        const data = await res.json().catch(() => null);
+        toast.error(typeof data?.error === 'string' ? data.error : '保存失敗');
       }
     } catch {
       toast.error('儲存時發生錯誤');
