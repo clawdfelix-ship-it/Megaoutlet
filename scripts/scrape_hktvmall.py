@@ -52,12 +52,13 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
+        page.set_default_timeout(15000)
         for i, sku in enumerate(skus, start=1):
             url = f"https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001/p/{sku}"
             try:
-                page.goto(url, timeout=45000, wait_until="domcontentloaded")
-                page.wait_for_selector(".product-title-name", timeout=20000)
-                page.wait_for_timeout(800)
+                page.goto(url, timeout=25000, wait_until="domcontentloaded")
+                page.wait_for_selector(".product-title-name", timeout=10000)
+                page.wait_for_timeout(300)
                 final_url = page.url
                 final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
                 d = page.evaluate(
@@ -116,6 +117,7 @@ def main():
                     "url": final_url,
                 }
                 out.append(prod)
+                print(f"{i}/{len(skus)} {final_sku} images={len(imgs)}")
                 if i % 10 == 0:
                     DATA_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
                 time.sleep(0.3)
