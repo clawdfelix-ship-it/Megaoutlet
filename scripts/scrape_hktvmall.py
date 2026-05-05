@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from playwright.sync_api import sync_playwright
 import json, re, time
+import os
 from pathlib import Path
 
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "megaoutlet_all_products.json"
@@ -43,6 +44,10 @@ def main():
             skus.append(sku)
 
     out = []
+    limit_env = os.getenv("SCRAPE_LIMIT", "").strip()
+    limit = int(limit_env) if limit_env.isdigit() else 0
+    if limit > 0:
+        skus = skus[:limit]
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -50,8 +55,11 @@ def main():
         for i, sku in enumerate(skus, start=1):
             url = f"https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001/p/{sku}"
             try:
-                page.goto(url, timeout=45000)
-                page.wait_for_timeout(1500)
+                page.goto(url, timeout=45000, wait_until="domcontentloaded")
+                page.wait_for_selector(".product-title-name", timeout=20000)
+                page.wait_for_timeout(800)
+                final_url = page.url
+                final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
                 d = page.evaluate(
                     """
                     () => ({
@@ -59,15 +67,42 @@ def main():
                         price: document.querySelector('.product-price')?.innerText.trim() || '',
                         desc: document.querySelector('.product-description')?.innerText.trim() || '',
                         detail: document.querySelector('.product-detail')?.innerText.trim() || '',
+                        ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute('content') || '',
                         images: Array.from(document.querySelectorAll('.product-image img'))
-                            .map(img => img.src || img.getAttribute('data-src'))
+                            .map(img => img.currentSrc || img.src || img.getAttribute('data-src'))
                             .filter(s => s && s.startsWith('http'))
                     })
                     """
                 )
                 p2 = parse_detail(d.get("detail") or "")
+                imgs = d.get("images") or []
+                if isinstance(imgs, list):
+                    s = []
+                    seen_img = set()
+                    og = (d.get("ogImage") or "").strip()
+                    if og and og.startswith("http"):
+                        s.append(og)
+                        seen_img.add(og)
+                    for u in imgs:
+                        if not isinstance(u, str):
+                            continue
+                        u = u.strip()
+                        if not u or u in seen_img:
+                            continue
+                        seen_img.add(u)
+                        s.append(u)
+                    imgs = sorted(
+                        s,
+                        key=lambda u: (
+                            0 if "_1200" in u or u.endswith("1200.jpg") or u.endswith("1200.png") else 1,
+                            u,
+                        ),
+                    )
+                else:
+                    imgs = []
+
                 prod = {
-                    "sku": sku,
+                    "sku": final_sku,
                     "name": d.get("name") or "",
                     "price": p2["price"] or (d.get("price") or ""),
                     "origin": p2["origin"],
@@ -77,8 +112,8 @@ def main():
                     "shipping": p2["shipping"],
                     "short_desc": d.get("desc") or "",
                     "detail": d.get("detail") or "",
-                    "images": d.get("images") or [],
-                    "url": url,
+                    "images": imgs,
+                    "url": final_url,
                 }
                 out.append(prod)
                 if i % 10 == 0:
@@ -93,4 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

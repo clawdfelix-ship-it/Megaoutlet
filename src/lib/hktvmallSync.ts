@@ -5,13 +5,33 @@ export async function syncHKTVmallProducts(products: any[]) {
   let updated = 0;
   let errors = 0;
 
+  const normalizeImages = (raw: unknown) => {
+    if (!Array.isArray(raw)) return [];
+    const uniq: string[] = [];
+    const seen = new Set<string>();
+    for (const v of raw) {
+      if (typeof v !== 'string') continue;
+      const u = v.trim();
+      if (!u || seen.has(u)) continue;
+      seen.add(u);
+      uniq.push(u);
+    }
+    uniq.sort((a, b) => {
+      const aHi = a.includes('_1200') || a.endsWith('1200.jpg') || a.endsWith('1200.png');
+      const bHi = b.includes('_1200') || b.endsWith('1200.jpg') || b.endsWith('1200.png');
+      if (aHi === bHi) return a.localeCompare(b);
+      return aHi ? -1 : 1;
+    });
+    return uniq;
+  };
+
   for (const p of products) {
     try {
       const sku = (p?.sku ?? '').toString().trim();
       const name = (p?.name ?? '').toString().trim();
       if (!sku || !name) continue;
 
-      const images = Array.isArray(p.images) ? p.images : [];
+      const images = normalizeImages(p.images);
       const price = parseFloat((p.price || '0').toString().replace(/[$,]/g, '')) || 0;
       const soldCount = parseInt((p.sold_count || '0').toString().replace(/[,+]/g, '')) || 0;
 
