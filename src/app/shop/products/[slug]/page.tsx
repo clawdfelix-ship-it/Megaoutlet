@@ -1,21 +1,24 @@
 import { notFound } from 'next/navigation';
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
 import { Truck, Shield, RefreshCw, ChevronRight, Clock, Package } from 'lucide-react';
 import { ProductDetailClient } from './ProductDetailClient';
+import { prisma } from '@/lib/prisma';
 
 async function getProduct(slug: string) {
-  const { prisma } = await import('@/lib/prisma');
   try {
     const p = await prisma.product.findUnique({ where: { slug } });
     return p?.isActive ? p : null;
-  } catch { return null; }
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
 }
 
 async function getRelatedProducts(categoryId: number | null, excludeId: number) {
-  const { prisma } = await import('@/lib/prisma');
   try {
     if (!categoryId) {
       return prisma.product.findMany({
@@ -27,7 +30,10 @@ async function getRelatedProducts(categoryId: number | null, excludeId: number) 
       where: { isActive: true, categoryId, id: { not: excludeId } },
       orderBy: { soldCount: 'desc' }, take: 4,
     });
-  } catch { return []; }
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
 }
 
 export default async function ProductDetailPage({
