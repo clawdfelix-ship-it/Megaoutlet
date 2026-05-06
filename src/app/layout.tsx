@@ -6,7 +6,7 @@ import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'MEGA OUTLET - 香港大型網購平台',
-  description: 'MEGA OUTLET 提供來自日本、泰國等地的優質商品，包括零食、保健品、個人護理等。2日送達，滿$200全港免運。',
+  description: 'MEGA OUTLET 提供來自日本、泰國等地的優質商品，包括零食、保健品、個人護理等。2日送達，滿$199全港免運。',
   keywords: '香港網購,日本零食,泰國零食,保健品,個人護理,HKTVmall',
 };
 

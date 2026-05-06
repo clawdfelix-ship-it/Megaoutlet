@@ -67,7 +67,7 @@ export default async function HomePage() {
                 <span className="text-primary">日本零食專門店</span>
               </h1>
               <p className="text-white/60 text-base md:text-lg mb-6 max-w-md">
-                精選來自日本、泰國的人氣零食、保健品及個人護理商品，全部2日送達，滿$200全港免運！
+                精選來自日本、泰國的人氣零食、保健品及個人護理商品，全部2日送達，滿$199全港免運！
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link href="/shop/products" className="btn btn-primary px-6 py-3 text-base">
@@ -100,7 +100,7 @@ export default async function HomePage() {
               { label: '商品總數', value: `${stats.totalProducts}+`, icon: '🛍️' },
               { label: '已售訂單', value: `${stats.totalOrders}+`, icon: '📦' },
               { label: '客戶評分', value: '4.8/5', icon: '⭐' },
-                { label: '2日送達', value: '滿$200免運', icon: '🚚' },
+                { label: '2日送達', value: '滿$199免運', icon: '🚚' },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-2xl mb-1">{stat.icon}</div>

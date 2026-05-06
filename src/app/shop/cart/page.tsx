@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, totalPrice, totalItems } = useCartStore();
   const router = useRouter();
-  const shippingFee = totalPrice() >= 200 ? 0 : 30;
+  const shippingFee = totalPrice() >= 199 ? 0 : 30;
   const grandTotal = totalPrice() + shippingFee;
 
   const handleCheckout = () => {
@@ -158,7 +158,7 @@ export default function CartPage() {
               {shippingFee > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-lg p-2">
                   <Truck size={12} />
-                  <span>消費滿 HK$200 可享免運費</span>
+                  <span>消費滿 HK$199 可享免運費</span>
                 </div>
               )}
             </div>

@@ -16,7 +16,7 @@ export default function CheckoutPage() {
   const [orderNo, setOrderNo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('fps');
   const [step, setStep] = useState<'form' | 'success'>('form');
-  const shippingFee = totalPrice() >= 200 ? 0 : 30;
+  const shippingFee = totalPrice() >= 199 ? 0 : 30;
 
   const [form, setForm] = useState({
     name: '',
