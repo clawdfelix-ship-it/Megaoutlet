@@ -26,6 +26,57 @@ export async function syncHKTVmallProducts(products: any[]) {
     return uniq;
   };
 
+  const REVIEWS_START = '[[HKTV_REVIEWS_JSON]]';
+  const REVIEWS_END = '[[/HKTV_REVIEWS_JSON]]';
+
+  const stripEmbeddedReviews = (detail: string) => {
+    const s = detail.indexOf(REVIEWS_START);
+    if (s < 0) return detail;
+    const e = detail.indexOf(REVIEWS_END, s);
+    if (e < 0) return detail.slice(0, s).trimEnd();
+    return (detail.slice(0, s) + detail.slice(e + REVIEWS_END.length)).trim();
+  };
+
+  const embedReviews = (detail: string, payload: any | null) => {
+    const base = stripEmbeddedReviews(detail || '');
+    if (!payload) return base;
+    let jsonText = '';
+    try {
+      jsonText = JSON.stringify(payload);
+    } catch {
+      return base;
+    }
+    return [base.trim(), REVIEWS_START, jsonText, REVIEWS_END].filter(Boolean).join('\n');
+  };
+
+  const buildReviewPayload = (p: any) => {
+    const stats = p?.review_stats;
+    const reviewsRaw = Array.isArray(p?.reviews) ? p.reviews : [];
+    const rawText = typeof p?.review_dom_text === 'string' ? p.review_dom_text.trim() : '';
+    const noText = typeof p?.review_no_text === 'string' ? p.review_no_text.trim() : '';
+    const reviews = reviewsRaw
+      .slice(0, 20)
+      .map((r: any) => ({
+        rating: typeof r?.rating === 'number' ? r.rating : r?.rating != null ? Number(r.rating) : null,
+        title: typeof r?.title === 'string' ? r.title.slice(0, 120) : '',
+        comment: typeof r?.comment === 'string' ? r.comment.slice(0, 800) : '',
+        created_at: typeof r?.created_at === 'string' ? r.created_at.slice(0, 60) : '',
+        user: typeof r?.user === 'string' ? r.user.slice(0, 60) : '',
+        images: Array.isArray(r?.images) ? r.images.filter((u: any) => typeof u === 'string').slice(0, 6) : [],
+      }))
+      .filter((r: any) => r.title || r.comment || r.rating != null || (Array.isArray(r.images) && r.images.length > 0));
+
+    const hasStats = stats != null && (typeof stats === 'object' || Array.isArray(stats));
+    const hasRaw = rawText.length > 0 || noText.length > 0;
+    if (!hasStats && reviews.length === 0 && !hasRaw) return null;
+    return {
+      stats: hasStats ? stats : null,
+      reviews,
+      raw_text: rawText.slice(0, 4000),
+      no_text: noText.slice(0, 200),
+    };
+  };
+
   const bestBySku = new Map<string, any>();
   for (const p of products) {
     const sku = (p?.sku ?? '').toString().trim();
@@ -63,6 +114,8 @@ export async function syncHKTVmallProducts(products: any[]) {
       const images = normalizeImages(p.images);
       const price = parseFloat((p.price || '0').toString().replace(/[$,]/g, '')) || 0;
       const soldCount = parseInt((p.sold_count || '0').toString().replace(/[,+]/g, '')) || 0;
+      const reviewPayload = buildReviewPayload(p);
+      const detailWithReviews = embedReviews((p.detail || '').toString(), reviewPayload);
 
       let categoryName = '其他';
       if (
@@ -106,7 +159,7 @@ export async function syncHKTVmallProducts(products: any[]) {
             packingSpec: p.packing_spec || '',
             shipping: p.shipping || '',
             shortDesc: p.short_desc || '',
-            detail: p.detail || '',
+            detail: detailWithReviews,
             images: JSON.stringify(images),
             url: p.url || '',
             categoryId: category.id,
@@ -131,7 +184,7 @@ export async function syncHKTVmallProducts(products: any[]) {
             packingSpec: p.packing_spec || '',
             shipping: p.shipping || '',
             shortDesc: p.short_desc || '',
-            detail: p.detail || '',
+            detail: detailWithReviews,
             images: JSON.stringify(images),
             url: p.url || '',
             categoryId: category.id,

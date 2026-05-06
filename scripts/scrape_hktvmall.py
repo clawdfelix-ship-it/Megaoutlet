@@ -8,6 +8,8 @@ DEFAULT_DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "megaoutlet_a
 INPUT_FILE = Path(os.getenv("SCRAPE_INPUT_PATH") or DEFAULT_DATA_FILE)
 OUTPUT_FILE = Path(os.getenv("SCRAPE_OUTPUT_PATH") or INPUT_FILE)
 STORE_URL = os.getenv("SCRAPE_STORE_URL") or "https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001"
+REVIEWS_PAGE_SIZE = 10
+REVIEWS_PAGES = int(os.getenv("SCRAPE_REVIEWS_PAGES") or "1")
 
 
 def parse_detail(text: str):
@@ -83,9 +85,64 @@ def discover_skus(page):
     return sorted(skus)
 
 
+def safe_response_json(resp):
+    try:
+        return resp.json()
+    except Exception:
+        try:
+            return json.loads(resp.text())
+        except Exception:
+            return None
+
+
+def normalize_reviews(pages):
+    if not isinstance(pages, list):
+        return []
+    items = []
+    for payload in pages:
+        if isinstance(payload, list):
+            items.extend(payload)
+            continue
+        if not isinstance(payload, dict):
+            continue
+        v = payload.get("reviews") or payload.get("data") or payload.get("items") or payload.get("results")
+        if isinstance(v, list):
+            items.extend(v)
+    out = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        rating = it.get("rating") or it.get("stars") or it.get("rating_value")
+        try:
+            rating = int(rating) if rating is not None else None
+        except Exception:
+            rating = None
+        comment = it.get("comment") or it.get("content") or it.get("text") or it.get("review")
+        title = it.get("title") or it.get("subject") or ""
+        created_at = it.get("created_at") or it.get("createdAt") or it.get("date") or it.get("created")
+        user = it.get("user") or it.get("username") or it.get("reviewer") or it.get("customer_name")
+        images = it.get("images") or it.get("image_urls") or []
+        if isinstance(images, str):
+            images = [images]
+        if not isinstance(images, list):
+            images = []
+        out.append(
+            {
+                "rating": rating,
+                "title": str(title).strip(),
+                "comment": str(comment).strip() if comment is not None else "",
+                "created_at": str(created_at).strip() if created_at is not None else "",
+                "user": str(user).strip() if user is not None else "",
+                "images": [str(x).strip() for x in images if isinstance(x, str) and x.strip().startswith("http")],
+            }
+        )
+    return out
+
+
 def main():
     skus = []
     seen = set()
+    only_sku = os.getenv("SCRAPE_ONLY_SKU", "").strip()
     if INPUT_FILE.exists():
         raw = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
         products = raw if isinstance(raw, list) else raw.get("products", [])
@@ -133,16 +190,135 @@ def main():
             if limit > 0:
                 skus = skus[:limit]
 
+        if only_sku:
+            skus = [only_sku]
+
         for i, sku in enumerate(skus, start=1):
             url = f"https://www.hktvmall.com/hktv/zh/main/MEGA-OUTLET/s/H9456001/p/{sku}"
             page = context.new_page()
+            review_capture = {"stat": None, "pages": []}
+            auth_capture = {"token": ""}
+
+            def on_request(req):
+                try:
+                    tok = req.headers.get("authorization") or ""
+                    if isinstance(tok, str) and tok.startswith("Bearer "):
+                        auth_capture["token"] = tok
+                except Exception:
+                    return
+
+            def on_response(resp):
+                try:
+                    u = resp.url
+                    if "ucapi.comms.hktvmall.com" not in u or "/hktvmall/products/" not in u:
+                        return
+                    if "/reviews/stat" in u:
+                        j = safe_response_json(resp)
+                        if isinstance(j, (dict, list)):
+                            review_capture["stat"] = j
+                        return
+                    if "/reviews/" in u and "/reviews/stat" not in u:
+                        j = safe_response_json(resp)
+                        if isinstance(j, (dict, list)):
+                            review_capture["pages"].append(j)
+                except Exception:
+                    return
+
+            page.on("request", on_request)
+            page.on("response", on_response)
             try:
                 page.goto(url, timeout=30000, wait_until="load")
                 page.wait_for_selector('meta[property="og:title"]', timeout=15000, state="attached")
                 page.wait_for_selector('meta[property="og:image"]', timeout=15000, state="attached")
-                page.wait_for_timeout(400)
+                page.wait_for_timeout(800)
                 final_url = page.url
                 final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
+                pid = None
+                if m := re.match(r"^H9456001_S_(\d+)$", final_sku):
+                    pid = "H9456001" + m.group(1)
+                if len(review_capture["pages"]) < max(1, REVIEWS_PAGES):
+                    try:
+                        page.locator("text=詳細介紹").first.scroll_into_view_if_needed(timeout=2000)
+                        page.wait_for_timeout(400)
+                        page.locator("text=評論").first.click(timeout=2000)
+                        page.wait_for_timeout(1200)
+                    except Exception:
+                        pass
+                review_dom = {}
+                try:
+                    review_dom = page.evaluate(
+                        """
+                        () => {
+                          const el = document.querySelector('#reviews') || document.querySelector('.reviews');
+                          const no = document.querySelector('.noReviews');
+                          const txt = (el?.innerText || el?.textContent || '').trim();
+                          const noTxt = (no?.innerText || no?.textContent || '').trim();
+                          return { text: txt, no_text: noTxt };
+                        }
+                        """
+                    )
+                except Exception:
+                    review_dom = {}
+                if pid and (review_capture["stat"] is None or len(review_capture["pages"]) < max(1, REVIEWS_PAGES)):
+                    tok = auth_capture.get("token") or ""
+                    try:
+                        stat_url = (
+                            f"https://ucapi.comms.hktvmall.com/hktvmall/products/{pid}/reviews/stat"
+                            f"?count_has_images=true&count_has_replies=true&count_by_ratings=true"
+                        )
+                        res = page.evaluate(
+                            """
+                            async ({ url, token }) => {
+                              try {
+                                const headers = { accept: 'application/json, text/plain, */*' };
+                                if (token) headers.authorization = token;
+                                const r = await fetch(url, { headers, credentials: 'include' });
+                                return { status: r.status, text: await r.text() };
+                              } catch (e) {
+                                return { status: 0, text: '' };
+                              }
+                            }
+                            """,
+                            {"url": stat_url, "token": tok},
+                        )
+                        if isinstance(res, dict) and res.get("status") == 200 and isinstance(res.get("text"), str):
+                            try:
+                                review_capture["stat"] = json.loads(res["text"])
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    try:
+                        for page_idx in range(max(1, REVIEWS_PAGES)):
+                            if len(review_capture["pages"]) >= max(1, REVIEWS_PAGES):
+                                break
+                            list_url = (
+                                f"https://ucapi.comms.hktvmall.com/hktvmall/products/{pid}/reviews/"
+                                f"?lang=zh&current_page={page_idx}&has_image=false&has_reply=false"
+                                f"&page_size={REVIEWS_PAGE_SIZE}"
+                            )
+                            res = page.evaluate(
+                                """
+                                async ({ url, token }) => {
+                                  try {
+                                    const headers = { accept: 'application/json, text/plain, */*' };
+                                    if (token) headers.authorization = token;
+                                    const r = await fetch(url, { headers, credentials: 'include' });
+                                    return { status: r.status, text: await r.text() };
+                                  } catch (e) {
+                                    return { status: 0, text: '' };
+                                  }
+                                }
+                                """,
+                                {"url": list_url, "token": tok},
+                            )
+                            if isinstance(res, dict) and res.get("status") == 200 and isinstance(res.get("text"), str):
+                                try:
+                                    review_capture["pages"].append(json.loads(res["text"]))
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
                 d = page.evaluate(
                     """
                     () => ({
@@ -189,6 +365,10 @@ def main():
                 else:
                     imgs = []
 
+                reviews = normalize_reviews(review_capture.get("pages"))
+                if len(reviews) > REVIEWS_PAGE_SIZE * max(1, REVIEWS_PAGES):
+                    reviews = reviews[: (REVIEWS_PAGE_SIZE * max(1, REVIEWS_PAGES))]
+
                 prod = {
                     "sku": final_sku,
                     "name": d.get("name") or "",
@@ -202,6 +382,10 @@ def main():
                     "detail": d.get("detail") or "",
                     "images": imgs,
                     "url": final_url,
+                    "review_stats": review_capture.get("stat"),
+                    "reviews": reviews,
+                    "review_dom_text": (review_dom.get("text") or "") if isinstance(review_dom, dict) else "",
+                    "review_no_text": (review_dom.get("no_text") or "") if isinstance(review_dom, dict) else "",
                 }
                 existing = out_by_sku.get(final_sku)
                 if existing is None or should_replace(existing, prod):

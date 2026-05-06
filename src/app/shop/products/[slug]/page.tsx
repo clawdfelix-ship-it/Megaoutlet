@@ -16,6 +16,24 @@ function normalizeSlug(rawSlug: string) {
   }
 }
 
+function extractEmbeddedReviews(detail: string) {
+  const START = '[[HKTV_REVIEWS_JSON]]';
+  const END = '[[/HKTV_REVIEWS_JSON]]';
+  const s = detail.indexOf(START);
+  if (s < 0) return { detail: detail.trim(), reviews: null as any };
+  const e = detail.indexOf(END, s);
+  if (e < 0) return { detail: detail.trim(), reviews: null as any };
+
+  const jsonText = detail.slice(s + START.length, e).trim();
+  const cleaned = (detail.slice(0, s) + detail.slice(e + END.length)).trim();
+  try {
+    const parsed = JSON.parse(jsonText);
+    return { detail: cleaned, reviews: parsed };
+  } catch {
+    return { detail: cleaned, reviews: null as any };
+  }
+}
+
 async function getProduct(rawSlug: string) {
   try {
     const slug = normalizeSlug(rawSlug);
@@ -61,6 +79,11 @@ export default async function ProductDetailPage({
 
   const related = await getRelatedProducts(product.categoryId, product.id);
   const images: string[] = JSON.parse(product.images || '[]');
+  const embedded = extractEmbeddedReviews(product.detail || '');
+  const reviews: any[] = Array.isArray(embedded?.reviews?.reviews) ? embedded.reviews.reviews : [];
+  const reviewStats = embedded?.reviews?.stats ?? null;
+  const reviewRawText = typeof embedded?.reviews?.raw_text === 'string' ? embedded.reviews.raw_text : '';
+  const reviewNoText = typeof embedded?.reviews?.no_text === 'string' ? embedded.reviews.no_text : '';
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -205,10 +228,58 @@ export default async function ProductDetailPage({
         </div>
         <div className="p-6 md:p-8">
           <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
-            {product.detail}
+            {embedded.detail}
           </div>
         </div>
       </div>
+
+      {(reviewStats || reviews.length > 0 || reviewRawText || reviewNoText) && (
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+          <div className="border-b border-gray-100 px-6 py-4">
+            <h2 className="text-sm font-semibold text-dark">用家評論</h2>
+          </div>
+          <div className="p-6 md:p-8">
+            <p className="text-sm text-gray-500 mb-4">共 {reviews.length} 則評論</p>
+            {reviews.length === 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500">{reviewNoText || '暫無評論'}</p>
+                {reviewRawText && <pre className="text-xs text-gray-500 whitespace-pre-wrap">{reviewRawText}</pre>}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.slice(0, 10).map((r: any, idx: number) => {
+                  const ratingNum =
+                    typeof r?.rating === 'number' ? r.rating : r?.rating != null ? Number(r.rating) : null;
+                  const stars =
+                    typeof ratingNum === 'number' && Number.isFinite(ratingNum)
+                      ? '★'.repeat(Math.max(0, Math.min(5, Math.round(ratingNum)))) +
+                        '☆'.repeat(Math.max(0, 5 - Math.max(0, Math.min(5, Math.round(ratingNum)))))
+                      : '';
+                  const title = typeof r?.title === 'string' ? r.title : '';
+                  const comment = typeof r?.comment === 'string' ? r.comment : '';
+                  const user = typeof r?.user === 'string' ? r.user : '';
+                  const createdAt = typeof r?.created_at === 'string' ? r.created_at : '';
+                  return (
+                    <div key={idx} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm text-yellow-600 mb-1">{stars}</div>
+                          {title && <div className="text-sm font-semibold text-dark mb-1">{title}</div>}
+                          {comment && <div className="text-sm text-gray-600 whitespace-pre-wrap">{comment}</div>}
+                        </div>
+                        <div className="text-xs text-gray-400 shrink-0 text-right">
+                          {user && <div>{user}</div>}
+                          {createdAt && <div>{createdAt}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Related products */}
       {related.length > 0 && (
