@@ -22,7 +22,7 @@ export function Header() {
     <header className="bg-dark sticky top-0 z-50 shadow-md">
       {/* Top promo bar */}
       <div className="bg-primary text-white text-center py-1.5 text-sm font-medium">
-        🛒 MEGA OUTLET  全港免運費 | 2日送達 🚚
+        🛒 MEGA OUTLET  滿$200全港免運 | 2日送達 🚚
       </div>
 
       {/* Main header */}
