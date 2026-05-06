@@ -14,7 +14,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [orderNo, setOrderNo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('fps');
   const [step, setStep] = useState<'form' | 'success'>('form');
   const shippingFee = totalPrice() >= 199 ? 0 : 30;
 
@@ -166,7 +166,6 @@ export default function CheckoutPage() {
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 className="form-input"
               >
-                <option value="cod">貨到付款</option>
                 <option value="fps">轉數快 FPS</option>
                 <option value="payme">PayMe</option>
                 <option value="bank">銀行轉帳</option>
