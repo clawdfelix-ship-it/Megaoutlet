@@ -13,8 +13,11 @@ export async function syncHKTVmallProducts(products: any[]) {
     for (const v of raw) {
       if (typeof v !== 'string') continue;
       const u = v.trim();
-      if (!u || seen.has(u)) continue;
-      seen.add(u);
+      if (!u) continue;
+      const base = u.split('?', 1)[0];
+      const key = base.replace(/_(\d+)(?=\.(jpg|jpeg|png)$)/i, '');
+      if (seen.has(key)) continue;
+      seen.add(key);
       uniq.push(u);
     }
     uniq.sort((a, b) => {

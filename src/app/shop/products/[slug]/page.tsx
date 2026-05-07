@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
 import { Truck, Shield, RefreshCw, ChevronRight, Clock, Package } from 'lucide-react';
 import { ProductDetailClient } from './ProductDetailClient';
+import { ProductImageGalleryClient } from './ProductImageGalleryClient';
 import { prisma } from '@/lib/prisma';
 
 function normalizeSlug(rawSlug: string) {
@@ -101,37 +102,7 @@ export default async function ProductDetailPage({
         <div className="grid md:grid-cols-2 gap-0">
           {/* Image gallery */}
           <div className="p-6 bg-gray-50">
-            <div className="relative aspect-square bg-white rounded-xl overflow-hidden shadow-sm mb-4">
-              <Image
-                src={images[0] || 'https://via.placeholder.com/600x600?text=No+Image'}
-                alt={product.name}
-                fill
-                className="object-contain"
-                priority
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
-            </div>
-            {/* Thumbnail row */}
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {images.slice(0, 5).map((img, i) => (
-                  <div
-                    key={i}
-                    className={`relative w-16 h-16 shrink-0 rounded-lg overflow-hidden border-2 cursor-pointer transition-colors ${
-                      i === 0 ? 'border-primary' : 'border-transparent hover:border-gray-300'
-                    }`}
-                  >
-                    <Image
-                      src={img}
-                      alt={`${product.name} ${i + 1}`}
-                      fill
-                      className="object-contain"
-                      sizes="64px"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <ProductImageGalleryClient name={product.name} images={images} />
           </div>
 
           {/* Product info */}
