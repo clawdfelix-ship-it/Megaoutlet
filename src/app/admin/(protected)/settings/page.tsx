@@ -190,7 +190,7 @@ export default function AdminSettingsPage() {
           <div className="bg-blue-50 rounded-lg p-4 mb-4">
             <p className="text-sm text-blue-800">
               自動同步可通過 Vercel Cronjob 或外部伺服器上的 cron job 設置。
-              建議時間：每晚 03:00 AM（HKTVmall 更新後）
+              目前已配置在 vercel.json，每日 19:00 觸發一次（香港時間）
             </p>
           </div>
 
@@ -198,8 +198,8 @@ export default function AdminSettingsPage() {
             <p className="text-gray-500 mb-2">Vercel cronjob 配置 (vercel.json):</p>
             <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">{`{
   "crons": [{
-    "path": "/api/admin/sync",
-    "schedule": "0 3 * * *"
+    "path": "/api/cron/sync",
+    "schedule": "0 19 * * *"
   }]
 }`}</pre>
           </div>
