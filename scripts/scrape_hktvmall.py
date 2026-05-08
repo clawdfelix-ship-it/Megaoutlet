@@ -118,6 +118,32 @@ def keep_product_image(url: str):
     return "uploadproductimage" in low
 
 
+def extract_product_images_from_text(text: str):
+    if not isinstance(text, str) or not text:
+        return []
+    urls = re.findall(
+        r"https?://[^\"'\\s<>]+uploadProductImage[^\"'\\s<>]+\\.(?:jpg|jpeg|png)(?:\\?[^\"'\\s<>]+)?",
+        text,
+        flags=re.I,
+    )
+    out = []
+    seen = set()
+    for u in urls:
+        if not isinstance(u, str):
+            continue
+        s = u.strip()
+        if not s:
+            continue
+        if not keep_product_image(s):
+            continue
+        k = _image_key(s)
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        out.append(s)
+    return out
+
+
 def dedupe_image_variants(urls):
     if not isinstance(urls, list):
         return []
@@ -408,6 +434,7 @@ def main():
             page = context.new_page()
             review_capture = {"stat": None, "pages": []}
             auth_capture = {"token": ""}
+            api_capture = {"images": []}
 
             def on_request(req):
                 try:
@@ -420,17 +447,32 @@ def main():
             def on_response(resp):
                 try:
                     u = resp.url
-                    if "ucapi.comms.hktvmall.com" not in u or "/hktvmall/products/" not in u:
+                    if "ucapi.comms.hktvmall.com" in u and "/hktvmall/products/" in u:
+                        if "/reviews/stat" in u:
+                            j = safe_response_json(resp)
+                            if isinstance(j, (dict, list)):
+                                review_capture["stat"] = j
+                            return
+                        if "/reviews/" in u and "/reviews/stat" not in u:
+                            j = safe_response_json(resp)
+                            if isinstance(j, (dict, list)):
+                                review_capture["pages"].append(j)
+                            return
+
+                    if api_capture.get("images"):
                         return
-                    if "/reviews/stat" in u:
-                        j = safe_response_json(resp)
-                        if isinstance(j, (dict, list)):
-                            review_capture["stat"] = j
+                    h = resp.headers or {}
+                    ct = (h.get("content-type") or "").lower() if isinstance(h, dict) else ""
+                    if "application/json" not in ct:
                         return
-                    if "/reviews/" in u and "/reviews/stat" not in u:
-                        j = safe_response_json(resp)
-                        if isinstance(j, (dict, list)):
-                            review_capture["pages"].append(j)
+                    if not any(k in u for k in ["product", "pdp", "detail", "items", "search", "api"]):
+                        return
+                    t = resp.text()
+                    if "uploadProductImage" not in t:
+                        return
+                    imgs = extract_product_images_from_text(t)
+                    if len(imgs) > 0:
+                        api_capture["images"] = imgs[:80]
                 except Exception:
                     return
 
@@ -440,7 +482,16 @@ def main():
                 page.goto(url, timeout=30000, wait_until="load")
                 page.wait_for_selector('meta[property="og:title"]', timeout=15000, state="attached")
                 page.wait_for_selector('meta[property="og:image"]', timeout=15000, state="attached")
-                page.wait_for_timeout(800)
+                for _ in range(15):
+                    try:
+                        ogt = page.get_attribute('meta[property="og:title"]', "content") or ""
+                        ogi = page.get_attribute('meta[property="og:image"]', "content") or ""
+                        if isinstance(ogt, str) and ogt.strip() and isinstance(ogi, str) and ogi.strip():
+                            break
+                    except Exception:
+                        pass
+                    page.wait_for_timeout(200)
+                page.wait_for_timeout(600)
                 final_url = page.url
                 final_sku = final_url.rsplit("/p/", 1)[-1].strip() if "/p/" in final_url else sku
                 pid = None
@@ -613,6 +664,14 @@ def main():
                     if og and og.startswith("http"):
                         s.append(og)
                         seen_img.add(og)
+                    for u in (api_capture.get("images") or []):
+                        if not isinstance(u, str):
+                            continue
+                        u = u.strip()
+                        if not u or u in seen_img:
+                            continue
+                        seen_img.add(u)
+                        s.append(u)
                     for u in (interactive_imgs if isinstance(interactive_imgs, list) else []):
                         if not isinstance(u, str):
                             continue
